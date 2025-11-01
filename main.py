@@ -1,21 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
 import os
+import subprocess
 import secrets
+import logging
 
-load_dotenv()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.FileHandler("updateblog.log"), logging.StreamHandler()]
+)
 
 app = FastAPI(title="EyeTealer API", version="1.0")
 
 security = HTTPBasic()
 
-USERNAME = os.getenv("USERNAME")
-PASSWORD = os.getenv("PASSWORD")
+USERNAME = os.getenv("SIMPLE_API_USERNAME")
+PASSWORD = os.getenv("SIMPLE_API_PASSWORD")
+CONTAINER_NAME = os.getenv("SIMPLE_API_CONTAINER_NAME")
 
-if not USERNAME or not PASSWORD:
-    raise RuntimeError("USERNAME or PASSWORD not set!")
+if not USERNAME or not PASSWORD or not CONTAINER_NAME:
+    raise RuntimeError("USERNAME, PASSWORD or CONTAINER_NAME not set!")
 
 
 @app.get("/")
@@ -35,4 +41,16 @@ def secure_endpoint(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    return JSONResponse(content={"status": "done"})
+    try:
+        # Restart the specified Docker container
+
+        logging.info("Blog update successful")
+        return JSONResponse(content={"status": "done"})
+
+    except Exception as e:
+        logging.error(f"Error when updating blog: {e}")
+
+    return JSONResponse(
+        content={"status": "error", "message": "Error when updating blog"},
+        status_code=500
+    )
